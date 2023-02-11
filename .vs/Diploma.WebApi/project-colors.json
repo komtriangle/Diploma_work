@@ -1,0 +1,16 @@
+{
+  "Version": 1,
+  "ProjectMap": {
+    "fbbab8a3-33fb-431a-a42f-c287e9ab0899": {
+      "ProjectGuid": "fbbab8a3-33fb-431a-a42f-c287e9ab0899",
+      "DisplayName": "Diploma.WebApi",
+      "ColorIndex": 0
+    },
+    "dfed1629-f071-4443-ac60-49bd7f12a23f": {
+      "ProjectGuid": "dfed1629-f071-4443-ac60-49bd7f12a23f",
+      "DisplayName": "Diploma.Tests",
+      "ColorIndex": 1
+    }
+  },
+  "NextColorIndex": 2
+}
