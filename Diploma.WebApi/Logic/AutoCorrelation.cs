@@ -52,7 +52,7 @@ namespace Diploma.WebApi.Logic
 				FormatOptions options = new()
 				{
 					IntervalDays = i,
-					StepDays = 1
+					StepDays = i
 				};
 
 				TimeInterval[] intervals = EarthQuakesAnalyzer.CreateIntervals(centerterEarthQuakes, options);

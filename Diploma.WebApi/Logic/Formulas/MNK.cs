@@ -5,15 +5,15 @@
 
         public static (double, double) Calculate(double[] x, double[] y)
         {
-            double[] ln_x = x;//.Select(v => Math.Log(v)).ToArray();
-            double[] ln_y = y;//.Select(v => Math.Log(v)).ToArray();
+            double[] ln_x = x.Select(v => Math.Log(v)).ToArray();
+            double[] ln_y = y.Select(v => Math.Log(v)).ToArray();
 
-            if(ln_x == null || ln_y == null)
+            if(x == null || y == null)
             {
                 throw new ArgumentNullException();
             }
 
-            if(ln_x.Length != ln_y.Length)
+            if(x.Length != y.Length)
             {
                 throw new Exception("Lengty x and y must be the same");
             }

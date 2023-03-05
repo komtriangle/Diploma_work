@@ -1,4 +1,5 @@
 ﻿using Diploma.WebApi.Data.DataAccess;
+using Diploma.WebApi.Data.TimeSeriesStorage;
 using Diploma.WebApi.Logic;
 using Diploma.WebApi.Logic.Models;
 using Diploma.WebApi.Models;
@@ -13,10 +14,12 @@ namespace Diploma.WebApi.Controllers
 	public class EarthQuakesController : ControllerBase
 	{
 		private readonly IEathQuakesData _eathQuakesData;
+		private readonly EarthQuakesDbContext _dbContext;
 
-		public EarthQuakesController(IEathQuakesData eathQuakesData)
+		public EarthQuakesController(IEathQuakesData eathQuakesData, EarthQuakesDbContext dbContext)
 		{
 			_eathQuakesData = eathQuakesData;
+			_dbContext = dbContext;
 		}
 
 		[HttpPost("AnalyzeEarthQuakes")]
@@ -58,22 +61,36 @@ namespace Diploma.WebApi.Controllers
 				};
 
 				List<Earthquake> earthquakesInGeograficCell = EarthQuakesAnalyzer.FilterByLogtitudeLatitute(earthQuakes,
-					filterOptions);
+					filterOptions).Where(x => x.Magnitude > 4.3).ToList();
 
 				TimeInterval[] timeIntervals = EarthQuakesAnalyzer.Format(earthquakesInGeograficCell, formatOptions);
 
 
-				TimeIntervalMagnitude[] timeSeriasMaxMagnitudes = EarthQuakesAnalyzer.MaxMagnitudeTimeSeries(earthQuakes, 
+				TimeIntervalMagnitude[] timeSeriasMaxMagnitudes = EarthQuakesAnalyzer.MaxMagnitudeTimeSeries(earthquakesInGeograficCell, 
 					timeIntervals);
 
 				List<TimeIntervalCorrelationDimension> timeIntervalCorrelationDimensions =
-						EarthQuakesAnalyzer.CalculateCorrelationDimensions(earthQuakes, timeIntervals);
+						EarthQuakesAnalyzer.CalculateCorrelationDimensions(earthquakesInGeograficCell, timeIntervals);
 
 				AnalyzeEarthQuakesResponse response = new AnalyzeEarthQuakesResponse()
 				{
 					TimeSeriesMaxMagnitudes = timeSeriasMaxMagnitudes,
 					TimeIntervalCorrelationDimensions = timeIntervalCorrelationDimensions.ToArray()
 				};
+
+			//	_dbContext.CorrelationDimensions.RemoveRange(_dbContext.CorrelationDimensions);
+				//_dbContext.SaveChanges();
+
+				foreach(var interval in timeIntervalCorrelationDimensions)
+				{
+					_dbContext.CorrelationDimensions.Add(new Data.TimeSeriesStorage.Entities.CorrelationDimension()
+					{
+						Time = interval.Start,
+						Value = interval.MinDimension
+					});
+				}
+
+				//_dbContext.SaveChanges();
 
 
 				return new JsonResult(response);
@@ -126,5 +143,57 @@ namespace Diploma.WebApi.Controllers
 
 			return new JsonResult(result);
 		}
+
+		/// <summary>
+		/// Получание списка всех 
+		/// зеслетрясений в заданной области
+		/// </summary>
+		/// <param name="request"></param>
+		/// <returns></returns>
+		[HttpPost("GetAllEarthQuakes")]
+		public  ActionResult GetAllEarthQuakes([FromBody] GetEarthQuakesRequest request)
+		{
+			if(!ModelState.IsValid)
+				return BadRequest(ModelState);
+
+			if(request.LongtitudeStart >= request.LongtitudeEnd)
+			{
+				return BadRequest("Значение долготы \"От\" должно быть меньше значение долготы \"До\"");
+			}
+
+			if(request.LatitudeStart >= request.LatitudeEnd)
+			{
+				return BadRequest("Значение долготы \"От\" должно быть меньше значение долготы \"До\"");
+			}
+
+			var earthQuakes = _eathQuakesData.GetEarthquakes();
+
+			FilterOptions filterOptions = new FilterOptions
+			{
+				LatitudeStart = request.LatitudeStart,
+				LatitudeEnd = request.LatitudeEnd,
+				LongtitudeStart = request.LongtitudeStart,
+				LongtitudeEnd = request.LongtitudeEnd
+			};
+
+			List<Earthquake> earthquakesInGeograficCell = EarthQuakesAnalyzer.FilterByLogtitudeLatitute(earthQuakes,
+				filterOptions);
+
+			GetAllEarthQuakesResponse response = new GetAllEarthQuakesResponse
+			{
+				Earthquakes = earthquakesInGeograficCell.GroupBy(x => (x.Time.Year,x.Time.Month))
+				.Select(x => x.OrderByDescending(x => x.Magnitude).First()).ToList(),
+				GroupedEarthQuakes = earthQuakes.GroupBy(x => x.Magnitude).Select(x => new GroupedEarthQuakes
+				{
+					Count = x.Count(),
+					MagnitudeValue = x.First().Magnitude
+				}).OrderBy(x => x.MagnitudeValue).ToList(),
+				Magnitudes = earthquakesInGeograficCell.GroupBy(x => (x.Time.Year, x.Time.Month))
+				.Select(x => x.OrderByDescending(x => x.Magnitude).First().Magnitude).ToArray()
+			};
+
+			return Ok(response);
+		}
+
 	}
 }

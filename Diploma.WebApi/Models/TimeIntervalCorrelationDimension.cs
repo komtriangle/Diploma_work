@@ -1,4 +1,6 @@
-﻿namespace Diploma.WebApi.Models
+﻿using Diploma.WebApi.Logic.Models;
+
+namespace Diploma.WebApi.Models
 {
 	/// <summary>
 	/// Корреляционнная размерность для временного интервала
@@ -17,7 +19,7 @@
 		public double k_tmp { get; set; }
 		public double b_tmp { get; set; }
 
-		public List<double> Attractor_tmp { get; set; }
+		public List<AttractorSigma> Attractor_tmp { get; set; }
 
 		/// <summary>
 		/// Маасив корреляционных размерностей 
@@ -35,5 +37,11 @@
 		/// достигается насыщение
 		/// </summary>
 		public int MinDimension { get; set; }
+	}
+
+	public class AttractorTmp
+	{
+		public double x { get; set; }
+		public double y { get; set; }
 	}
 }

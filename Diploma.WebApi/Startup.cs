@@ -1,6 +1,8 @@
 ﻿using Diploma.WebApi.Configuration;
 using Diploma.WebApi.Data;
 using Diploma.WebApi.Data.DataAccess;
+using Diploma.WebApi.Data.TimeSeriesStorage;
+using Microsoft.EntityFrameworkCore;
 
 namespace Diploma
 {
@@ -23,8 +25,18 @@ namespace Diploma
 			services.AddMemoryCache();
 
 			services.Configure<AppSettings>(_configuration.GetSection("AppSettings"));
-			services.AddTransient<ILoadData, LoadExcelData>();
+			services.AddTransient<ILoadData, LoadExcelData2>();
 			services.AddTransient<IEathQuakesData, EathQuakesData>();
+
+			AppSettings appSettings = _configuration.GetSection("AppSettings").Get<AppSettings>();
+
+			services.AddDbContext<EarthQuakesDbContext>(options =>
+		   {
+			   options.UseNpgsql(appSettings.TimeSeriesDbConnectionString);
+			   options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+		   });
+
+			AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 		}
 

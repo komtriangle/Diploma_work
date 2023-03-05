@@ -6,5 +6,6 @@
         /// Путь до файла с данными и землетрясениях
         /// </summary>
         public string FileDataPath { get; set; }
+        public string TimeSeriesDbConnectionString { get; set; }
     }
 }

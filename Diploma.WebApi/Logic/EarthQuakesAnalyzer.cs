@@ -7,10 +7,16 @@ namespace Diploma.WebApi.Logic
 	public static class EarthQuakesAnalyzer
 	{
 
-		private static double[] sigmas = new double[] {3, 2.9f, 2.8f, 2.7f, 2.6f, 2.5f, 2.4f, 2.3f, 2.2f, 2.1f, 2.0f,
-			1.9f, 1.8f, 1.7f, 1.6f, 1.5f, 1.4f, 1.3f, 1.2f, 1.1f};
+		private static double[] sigmas = new double[] { 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65,
+			0.70, 0.75, 0.80, 0.85, 0.90, 0.95,
+			1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60, 1.65, 1.70, 1.75, 1.80, 1.85, 1.90,
+			1.95, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25, 2.30, 2.35, 2.40, 2.45, 2.50, 2.55, 2.60, 2.65, 2.70, 2.75, 2.80,
+			2.85, 2.90, 2.95, 3.00, 3.05, 3.10, 3.15, 3.20, 3.25, 3.30, 3.35, 3.40, 3.45, 3.50, 3.55, 3.60, 3.65, 3.70, 
+			3.75, 3.80, 3.85, 3.90, 3.95, 4.00, 4.05, 4.10, 4.15, 4.20, 4.25, 4.30, 4.35, 4.40, 4.45, 4.50, 4.55, 4.60,
+			4.65, 4.70, 4.75, 4.80, 4.85, 4.90, 4.95, 5.00, 5.05, 5.10, 5.15, 5.20, 5.25, 5.30, 5.35, 5.40, 5.45, 5.50, 
+			5.55, 5.60, 5.65, 5.70, 5.75, 5.80, 5.85, 5.90, 5.95, 6.00, 6.05, 6.10, 6.15, 6.20, 6.25, 6.30, 6.35, 6.40 };
 
-		private static  int k = 50;
+		private static  int k = 20*4;
 		/// <summary>
 		/// Рассчитывает временной ряд максимальных
 		/// магнитуд для каждого интервала
@@ -61,19 +67,39 @@ namespace Diploma.WebApi.Logic
 
 				List<CorrelationDimension> correlactionDimensions = new List<CorrelationDimension>();
 
-				List<double> attractorSigma = new List<double>();
+				List<AttractorSigma> attractorSigma = new List<AttractorSigma>();
 
 				double k_tmp = 0, b_tmp = 0;
 
 				foreach(Attractor attractor in attractors)
 				{
-					var y = sigmas.Select(sigma => Math.Abs(Math.Log(correlationIntegral(attractor.Value, sigma))
-						 / Math.Log(sigma)))
+					(double, double)[] y = sigmas.Select(sigma => (correlationIntegral(attractor.Value, sigma), sigma))
 						.ToArray();
 
-					attractorSigma = y.ToList();
+					double maxBorder = Math.Log(y.Min(x => x.Item1) + 0.01);
+					var a = Math.Log(y.Max(x => x.Item1));
+					double minBorder = Math.Log(y.Max(x => x.Item1) - 0.5);
 
-					(b_tmp, k_tmp) = MNK.Calculate(sigmas, y);
+					var new_y = y.Where(v => Math.Log(v.Item1) >= maxBorder && Math.Log(v.Item1) <= minBorder).ToArray();
+
+					if(!new_y.Any())
+					{
+						new_y = y; 
+					}
+
+					y = new_y;
+
+
+					(b_tmp, k_tmp) = MNK.Calculate(y.Select(v => v.Item2).ToArray(),
+						  y.Select(v => v.Item1).ToArray());
+
+					attractorSigma.Add(new AttractorSigma
+					{
+						Values = sigmas.Select(sigma => Math.Log(correlationIntegral(attractor.Value, sigma)))
+							.ToArray(),
+						K = k_tmp,
+						B = b_tmp
+					});
 
 					correlactionDimensions.Add(new CorrelationDimension
 					{
@@ -82,13 +108,14 @@ namespace Diploma.WebApi.Logic
 					});
 				}
 
+
 				result.Add(new TimeIntervalCorrelationDimension
 				{
 					Start = interval.Start,
 					End = interval.End,
 					k_tmp = k_tmp,
 					b_tmp = b_tmp,
-					Attractor_tmp = attractorSigma,// .Select(v => Math.Log(v)).ToList(),
+					Attractor_tmp = attractorSigma,
 					CorrelationDimensions = correlactionDimensions,
 					CorrelationDimension = 0,
 					MinDimension = CalculateMinimalDimension(correlactionDimensions)
@@ -99,25 +126,21 @@ namespace Diploma.WebApi.Logic
 			return result;
 		}
 
-		private static List<Attractor> CalculateAttractors(TimeIntervalMagnitude[] magnitudes, int k)
+		private static List<Attractor> CalculateAttractors(TimeIntervalMagnitude[] magnitudes, int n)
 		{
 			List<Attractor> attractors = new List<Attractor>();
-			for(int i = 2; i < k/2; i++)
+			for(int k = 2; k < n / 2; k++)
 			{
 				Attractor attractor = new()
 				{
-					M = i
+					M = k
 				};
 
-				for(int j= 0; j < k - i; j++)
+				for(int i = 0; i < n - k + 1; i++)
 				{
-					List<double> attractorItem = magnitudes.Skip(j).Take(i+1)
-					.Select(m => m.Magnitude)
-					.ToList();
-
+					List<double> attractorItem = magnitudes.Skip(i).Take(k).Select(x => x.Magnitude).ToList();
 					attractor.Value.Add(attractorItem);
 				}
-
 				attractors.Add(attractor);
 			}
 
