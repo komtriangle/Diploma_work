@@ -18,7 +18,7 @@ namespace Diploma.WebApi.Logic
 
 		private static object _locker = new object();
 
-		private static  int k = 180;
+		private static  int k = 120;
 		/// <summary>
 		/// Рассчитывает временной ряд максимальных
 		/// магнитуд для каждого интервала
