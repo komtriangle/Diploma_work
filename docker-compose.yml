@@ -6,3 +6,5 @@ services:
     build:
       context: .
       dockerfile: Diploma.WebApi/Dockerfile
+    ports:
+    - 7555:80 
