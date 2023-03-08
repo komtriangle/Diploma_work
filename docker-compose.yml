@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  diploma.webapi:
+    image: ${DOCKER_REGISTRY-}diplomawebapi
+    build:
+      context: .
+      dockerfile: Diploma.WebApi/Dockerfile

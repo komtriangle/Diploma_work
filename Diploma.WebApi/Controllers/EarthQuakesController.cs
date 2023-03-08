@@ -63,6 +63,8 @@ namespace Diploma.WebApi.Controllers
 				List<Earthquake> earthquakesInGeograficCell = EarthQuakesAnalyzer.FilterByLogtitudeLatitute(earthQuakes,
 					filterOptions).Where(x => x.Magnitude > 4.3).ToList();
 
+				//earthquakesInGeograficCell = earthquakesInGeograficCell.Where(x => x.Time > DateTime.UtcNow.AddYears(-6)).ToList();
+
 				TimeInterval[] timeIntervals = EarthQuakesAnalyzer.Format(earthquakesInGeograficCell, formatOptions);
 
 

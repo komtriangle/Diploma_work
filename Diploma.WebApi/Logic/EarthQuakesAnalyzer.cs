@@ -16,7 +16,9 @@ namespace Diploma.WebApi.Logic
 			4.65, 4.70, 4.75, 4.80, 4.85, 4.90, 4.95, 5.00, 5.05, 5.10, 5.15, 5.20, 5.25, 5.30, 5.35, 5.40, 5.45, 5.50, 
 			5.55, 5.60, 5.65, 5.70, 5.75, 5.80, 5.85, 5.90, 5.95, 6.00, 6.05, 6.10, 6.15, 6.20, 6.25, 6.30, 6.35, 6.40 };
 
-		private static  int k = 20*4;
+		private static object _locker = new object();
+
+		private static  int k = 180;
 		/// <summary>
 		/// Рассчитывает временной ряд максимальных
 		/// магнитуд для каждого интервала
@@ -45,85 +47,128 @@ namespace Diploma.WebApi.Logic
 
 		public static List<TimeIntervalCorrelationDimension> CalculateCorrelationDimensions(List<Earthquake> earthquakes, TimeInterval[] intervals)
 		{
+			int totalCount = intervals.Count() * (k / 2 - 1);
+			int count = 0;
 
 			List<TimeIntervalCorrelationDimension> result = new List<TimeIntervalCorrelationDimension>();
 
-			foreach(TimeInterval interval in intervals)
-			{
-				List<Earthquake> earthquakesInInterval = earthquakes
-					.Where(e => interval.EarthQuakes.Contains(e.Id))
-					.ToList();
-
-				FormatOptions options = new FormatOptions
+			intervals.AsParallel().WithDegreeOfParallelism(10)
+				.ForAll(interval =>
 				{
-					IntervalDays = (interval.End - interval.Start).Days / k,
-					StepDays = (interval.End - interval.Start).Days / k
-				};
-				TimeInterval[] subintervals = CreateIntervals(earthquakesInInterval, options);
+					Console.WriteLine($"Временной интервал: {interval.Start}-{interval.End}");
+					List<Earthquake> earthquakesInInterval = earthquakes
+						.Where(e => interval.EarthQuakes.Contains(e.Id))
+						.ToList();
 
-				TimeIntervalMagnitude[] timeIntervalMagnitudes = MaxMagnitudeTimeSeries(earthquakesInInterval, subintervals);
-
-				List<Attractor> attractors = CalculateAttractors(timeIntervalMagnitudes, subintervals.Length);
-
-				List<CorrelationDimension> correlactionDimensions = new List<CorrelationDimension>();
-
-				List<AttractorSigma> attractorSigma = new List<AttractorSigma>();
-
-				double k_tmp = 0, b_tmp = 0;
-
-				foreach(Attractor attractor in attractors)
-				{
-					(double, double)[] y = sigmas.Select(sigma => (correlationIntegral(attractor.Value, sigma), sigma))
-						.ToArray();
-
-					double maxBorder = Math.Log(y.Min(x => x.Item1) + 0.01);
-					var a = Math.Log(y.Max(x => x.Item1));
-					double minBorder = Math.Log(y.Max(x => x.Item1) - 0.5);
-
-					var new_y = y.Where(v => Math.Log(v.Item1) >= maxBorder && Math.Log(v.Item1) <= minBorder).ToArray();
-
-					if(!new_y.Any())
+					FormatOptions options = new FormatOptions
 					{
-						new_y = y; 
-					}
+						IntervalDays = (interval.End - interval.Start).Days / k,
+						StepDays = (interval.End - interval.Start).Days / k
+					};
+					TimeInterval[] subintervals = CreateIntervals(earthquakesInInterval, options);
 
-					y = new_y;
+					TimeIntervalMagnitude[] timeIntervalMagnitudes = MaxMagnitudeTimeSeries(earthquakesInInterval, subintervals);
+
+					List<Attractor> attractors = CalculateAttractors(timeIntervalMagnitudes, subintervals.Length);
+
+					List<CorrelationDimension> correlactionDimensions = new List<CorrelationDimension>();
+
+					List<AttractorSigma> attractorSigma = new List<AttractorSigma>();
+
+					double k_tmp = 0, b_tmp = 0;
+
+					attractors.AsParallel()
+					  .WithDegreeOfParallelism(20)
+					  .ForAll(attractor =>
+					  {
+						  Interlocked.Increment(ref count);
+						  Console.WriteLine($"{count*100.0/totalCount}%");
+						  Console.WriteLine($"Аттрактор размера: {attractor.M}");
+						  (double, double)[] y = sigmas.Select(sigma => (correlationIntegral(attractor.Value, sigma), sigma))
+							.ToArray();
+
+						  double maxBorder = Math.Log(y.Min(x => x.Item1) + 0.01);
+						  var a = Math.Log(y.Max(x => x.Item1));
+						  double minBorder = Math.Log(y.Max(x => x.Item1) - 0.5);
+
+						  var new_y = y.Where(v => Math.Log(v.Item1) >= maxBorder && Math.Log(v.Item1) <= minBorder).ToArray();
+
+						  if(!new_y.Any())
+						  {
+							  new_y = y;
+						  }
+
+						  y = new_y;
 
 
-					(b_tmp, k_tmp) = MNK.Calculate(y.Select(v => v.Item2).ToArray(),
-						  y.Select(v => v.Item1).ToArray());
-
-					attractorSigma.Add(new AttractorSigma
-					{
-						Values = sigmas.Select(sigma => Math.Log(correlationIntegral(attractor.Value, sigma)))
-							.ToArray(),
-						K = k_tmp,
-						B = b_tmp
-					});
-
-					correlactionDimensions.Add(new CorrelationDimension
-					{
-						M = attractor.M,
-						Value = k_tmp
-					});
-				}
+						  (b_tmp, k_tmp) = MNK.Calculate(y.Select(v => v.Item2).ToArray(),
+								y.Select(v => v.Item1).ToArray());
 
 
-				result.Add(new TimeIntervalCorrelationDimension
-				{
-					Start = interval.Start,
-					End = interval.End,
-					k_tmp = k_tmp,
-					b_tmp = b_tmp,
-					Attractor_tmp = attractorSigma,
-					CorrelationDimensions = correlactionDimensions,
-					CorrelationDimension = 0,
-					MinDimension = CalculateMinimalDimension(correlactionDimensions)
+						  double[] attractoSigmaValues = sigmas.Select(sigma =>
+						  {
+							  double value = Math.Log(correlationIntegral(attractor.Value, sigma));
 
+							  if(double.IsInfinity(value))
+							  {
+								  Console.WriteLine($"Интеграл корреляционного интеграла Infinity.  {interval.Start}-{interval.End}. {attractor.M}");
+								  value = 0;
+							  }
+
+							  return value;
+						  })
+							.ToArray();
+
+
+						  if(Double.IsInfinity(k_tmp))
+						  {
+							  Console.WriteLine($"k_tmp Infinity.  {interval.Start}-{interval.End}. {attractor.M}");
+
+							  k_tmp = 0.0;
+						  }
+
+						  if(double.IsInfinity(b_tmp))
+						  {
+							  Console.WriteLine($"b_tmp Infinity.  {interval.Start}-{interval.End}. {attractor.M}");
+
+							  b_tmp = 0.0;
+						  }
+
+						  lock(_locker)
+						  {
+							  attractorSigma.Add(new AttractorSigma
+							  {
+								  Values = attractoSigmaValues,
+								  K = k_tmp,
+								  B = b_tmp
+							  });
+
+							  correlactionDimensions.Add(new CorrelationDimension
+							  {
+								  M = attractor.M,
+								  Value = k_tmp
+							  });
+
+
+							  result.Add(new TimeIntervalCorrelationDimension
+							  {
+								  Start = interval.Start,
+								  End = interval.End,
+								  k_tmp = k_tmp,
+								  b_tmp = b_tmp,
+								  Attractor_tmp = attractorSigma,
+								  CorrelationDimensions = correlactionDimensions,
+								  CorrelationDimension = 0,
+								  MinDimension = CalculateMinimalDimension(correlactionDimensions)
+
+							  });
+						  }
+					  });
 				});
-			}
 
-			return result;
+				  
+
+			return result.OrderBy(x => x.Start).ToList();
 		}
 
 		private static List<Attractor> CalculateAttractors(TimeIntervalMagnitude[] magnitudes, int n)
