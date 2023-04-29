@@ -12,5 +12,6 @@
 		/// Временной ряд корреляционных размерностей
 		/// </summary>
 		public TimeIntervalCorrelationDimension[] TimeIntervalCorrelationDimensions { get; set; }
+		public double[] CorrelationDimensionDifferences { get; set; }
 	}
 }

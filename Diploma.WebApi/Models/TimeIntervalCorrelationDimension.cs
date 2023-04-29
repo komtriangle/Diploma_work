@@ -16,8 +16,8 @@ namespace Diploma.WebApi.Models
 		/// </summary>
 		public DateTime End { get; set; }
 
-		public double k_tmp { get; set; }
-		public double b_tmp { get; set; }
+		public double k_tmp_dim { get; set; }
+		public double b_tmp_dim { get; set; }
 
 		public List<AttractorSigma> Attractor_tmp { get; set; }
 
@@ -37,6 +37,17 @@ namespace Diploma.WebApi.Models
 		/// достигается насыщение
 		/// </summary>
 		public int MinDimension { get; set; }
+
+		/// <summary>
+		/// Угол накллона графика зависимости
+		/// корреляционной размерности от размерности вложения
+		/// </summary>
+		public double K_tmp { get; set; }
+		/// <summary>
+		/// Смешение накллона графика зависимости
+		/// корреляционной размерности от размерности вложения
+		/// </summary>
+		public double B_tmp { get; set; }
 	}
 
 	public class AttractorTmp

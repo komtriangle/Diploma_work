@@ -5,8 +5,6 @@
 
         public static (double, double) Calculate(double[] x, double[] y)
         {
-            double[] ln_x = x.Select(v => Math.Log(v)).ToArray();
-            double[] ln_y = y.Select(v => Math.Log(v)).ToArray();
 
             if(x == null || y == null)
             {
@@ -18,10 +16,10 @@
                 throw new Exception("Lengty x and y must be the same");
             }
 
-            double denumerator = CalculateDenumerator(ln_x, ln_y);
+            double denumerator = CalculateDenumerator(x, y);
 
-            double a = CalculateANumerator(ln_x, ln_y) / denumerator;
-            double b = CalculateBNumerator(ln_x, ln_y) / denumerator;
+            double a = CalculateANumerator(x, y) / denumerator;
+            double b = CalculateBNumerator(x, y) / denumerator;
 
             return (a, b);
         }

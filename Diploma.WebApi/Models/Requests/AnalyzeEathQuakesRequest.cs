@@ -24,7 +24,7 @@ namespace Diploma.WebApi.Models.Requests
 		/// Значение "От" долготы
 		/// </summary>
 		[Required(ErrorMessage = "Не указано начальное значение долготы")]
-		[Range(-180, 180, ErrorMessage = "Значение долготы должно быть от -180 до 180")]
+		[Range(-180, 360, ErrorMessage = "Значение долготы должно быть от -180 до 180")]
 
 		public float LongtitudeStart { get; set; }
 
@@ -32,7 +32,7 @@ namespace Diploma.WebApi.Models.Requests
 		/// Значение "До" долготы
 		/// </summary>
 		[Required(ErrorMessage = "Не указано конечное значение долготы")]
-		[Range(-180, 180, ErrorMessage = "Значение долготы должно быть от -180 до 180")]
+		[Range(-180, 360, ErrorMessage = "Значение долготы должно быть от -180 до 180")]
 		public float LongtitudeEnd { get; set; }
 
 		/// <summary>

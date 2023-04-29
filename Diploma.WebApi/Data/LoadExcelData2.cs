@@ -65,10 +65,12 @@ namespace Diploma.WebApi.Data
 							Magnitude = double.Parse(csv.GetField<string>("mag"), CultureInfo.InvariantCulture)
 						};
 
-						if(earthquake.Time > DateTime.UtcNow.AddYears(-25))
-						{
-							earthquakes.Add(earthquake);
-						}
+						earthquakes.Add(earthquake);
+
+						//if(earthquake.Time > DateTime.UtcNow.AddYears(-25))
+						//{
+						//	earthquakes.Add(earthquake);
+						//}
 
 						//_earthQuakesDbContext.EarthQuakes.Add(new TimeSeriesStorage.Entities.EarthQuakes()
 						//{

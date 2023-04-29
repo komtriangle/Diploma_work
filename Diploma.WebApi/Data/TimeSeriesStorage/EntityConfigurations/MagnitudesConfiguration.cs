@@ -2,19 +2,17 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-
 namespace Diploma.WebApi.Data.TimeSeriesStorage.EntityConfigurations
 {
-	public class CorrelationDimensionConfiguration : IEntityTypeConfiguration<CorrelationDimension>
+	public class MagnitudesConfiguration: IEntityTypeConfiguration<Magnitudes>
 	{
-		public void Configure(EntityTypeBuilder<CorrelationDimension> builder)
+		public void Configure (EntityTypeBuilder<Magnitudes> builder)
 		{
-			builder.ToTable("corr_dimension_taivan");
+			builder.ToTable("magnitudes_taivan");
 
 			builder.Property(x => x.Time).HasColumnName("time");
 			builder.Property(x => x.Id).HasColumnName("id");
 			builder.Property(x => x.Value).HasColumnName("value");
-			
 		}
 	}
 }

@@ -19,7 +19,11 @@ namespace Diploma
 		public void ConfigureServices(IServiceCollection services)
 		{
 			services.AddCors();
-			services.AddControllers();
+			services.AddControllers()
+				.AddJsonOptions(options =>
+				{
+					options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
+				});
 			services.AddEndpointsApiExplorer();
 			services.AddSwaggerGen();
 			services.AddMemoryCache();
@@ -36,7 +40,7 @@ namespace Diploma
 			   options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
 		   });
 
-			AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+				AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 		}
 

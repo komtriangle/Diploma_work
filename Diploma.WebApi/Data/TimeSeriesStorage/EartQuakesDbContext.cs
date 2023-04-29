@@ -14,11 +14,13 @@ namespace Diploma.WebApi.Data.TimeSeriesStorage
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			base.OnModelCreating(modelBuilder);
-			modelBuilder.ApplyConfiguration(new EarthQuakesConfiguration());
+			//modelBuilder.ApplyConfiguration(new EarthQuakesConfiguration());
 			modelBuilder.ApplyConfiguration(new CorrelationDimensionConfiguration());
+			modelBuilder.ApplyConfiguration(new MagnitudesConfiguration());
 		}
 
-		public DbSet<EarthQuakes> EarthQuakes { get; set; }
+		//public DbSet<EarthQuakes> EarthQuakes { get; set; }
 		public DbSet<CorrelationDimension> CorrelationDimensions { get; set; }
+		public DbSet<Magnitudes> Magnitudes { get; set; }
 	}
 }

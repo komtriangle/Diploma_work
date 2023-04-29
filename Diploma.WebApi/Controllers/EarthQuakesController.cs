@@ -1,5 +1,6 @@
 ﻿using Diploma.WebApi.Data.DataAccess;
 using Diploma.WebApi.Data.TimeSeriesStorage;
+using Diploma.WebApi.Data.TimeSeriesStorage.Entities;
 using Diploma.WebApi.Logic;
 using Diploma.WebApi.Logic.Models;
 using Diploma.WebApi.Models;
@@ -23,7 +24,7 @@ namespace Diploma.WebApi.Controllers
 		}
 
 		[HttpPost("AnalyzeEarthQuakes")]
-		public ActionResult PredictEarthQuakes([FromBody] AnalyzeEathQuakesRequest request)
+		public async  Task<ActionResult> PredictEarthQuakes([FromBody] AnalyzeEathQuakesRequest request)
 		{
 			if(!ModelState.IsValid)
 				return BadRequest(ModelState);
@@ -61,9 +62,10 @@ namespace Diploma.WebApi.Controllers
 				};
 
 				List<Earthquake> earthquakesInGeograficCell = EarthQuakesAnalyzer.FilterByLogtitudeLatitute(earthQuakes,
-					filterOptions).Where(x => x.Magnitude > 4.3).ToList();
+					filterOptions).Where(x => x.Magnitude > 4.1 ).ToList();
 
-				//earthquakesInGeograficCell = earthquakesInGeograficCell.Where(x => x.Time > DateTime.UtcNow.AddYears(-6)).ToList();
+				//earthquakesInGeograficCell = earthquakesInGeograficCell.Where(x => x.Time > new DateTime(1990, 1, 1) &&
+				//x.Time < new DateTime(2005, 1, 1)).ToList();
 
 				TimeInterval[] timeIntervals = EarthQuakesAnalyzer.Format(earthquakesInGeograficCell, formatOptions);
 
@@ -74,28 +76,50 @@ namespace Diploma.WebApi.Controllers
 				List<TimeIntervalCorrelationDimension> timeIntervalCorrelationDimensions =
 						EarthQuakesAnalyzer.CalculateCorrelationDimensions(earthquakesInGeograficCell, timeIntervals);
 
+				List<double> correlationDimensionDifferences = new List<double>() {0, 0};
+
+				for(int i =2;i< timeIntervalCorrelationDimensions.Count; i++)
+				{
+					List<double> tmp = new List<double>() { timeIntervalCorrelationDimensions[i].MinDimension,
+					timeIntervalCorrelationDimensions[i-1].MinDimension,
+					timeIntervalCorrelationDimensions[i-2].MinDimension
+					// timeIntervalCorrelationDimensions[i-3].MinDimension
+					 };
+					correlationDimensionDifferences.Add(tmp.Max() - tmp.Min());
+				}
+
 				AnalyzeEarthQuakesResponse response = new AnalyzeEarthQuakesResponse()
 				{
 					TimeSeriesMaxMagnitudes = timeSeriasMaxMagnitudes,
-					TimeIntervalCorrelationDimensions = timeIntervalCorrelationDimensions.ToArray()
+					TimeIntervalCorrelationDimensions = timeIntervalCorrelationDimensions.ToArray(),
+					CorrelationDimensionDifferences = correlationDimensionDifferences.ToArray()
 				};
 
-			//	_dbContext.CorrelationDimensions.RemoveRange(_dbContext.CorrelationDimensions);
-				//_dbContext.SaveChanges();
+			    _dbContext.Magnitudes.RemoveRange(_dbContext.Magnitudes);
+				_dbContext.CorrelationDimensions.RemoveRange(_dbContext.CorrelationDimensions);
 
-				foreach(var interval in timeIntervalCorrelationDimensions)
+
+				for (int i = 0; i < timeIntervalCorrelationDimensions.Count; i++)
 				{
-					_dbContext.CorrelationDimensions.Add(new Data.TimeSeriesStorage.Entities.CorrelationDimension()
+					await _dbContext.Magnitudes.AddAsync(new Data.TimeSeriesStorage.Entities.Magnitudes
 					{
-						Time = interval.Start,
-						Value = interval.MinDimension
+						Time = timeSeriasMaxMagnitudes[i].Start,
+						Value = timeSeriasMaxMagnitudes[i].Magnitude
+					});
+
+					await _dbContext.CorrelationDimensions.AddAsync(new Data.TimeSeriesStorage.Entities.CorrelationDimension
+					{
+						Time = timeIntervalCorrelationDimensions[i].Start,
+						Value = correlationDimensionDifferences[i]
 					});
 				}
 
-				//_dbContext.SaveChanges();
+				await _dbContext.SaveChangesAsync();
+
+				var result = new JsonResult(response);
 
 
-				return new JsonResult(response);
+				return result;
 			}
 			catch(Exception ex)
 			{
@@ -181,18 +205,38 @@ namespace Diploma.WebApi.Controllers
 			List<Earthquake> earthquakesInGeograficCell = EarthQuakesAnalyzer.FilterByLogtitudeLatitute(earthQuakes,
 				filterOptions);
 
+			int days = 30;
+
+			DateTime firstDate = earthquakesInGeograficCell.Min(t => t.Time);
+			DateTime lastDate = earthquakesInGeograficCell.Max(t => t.Time);
+
+			int totalDays = (int)(lastDate - firstDate).TotalDays;
+
+			List<double> magnitudes = new List<double>();
+
+			for(int i =0;i< totalDays; i += days)
+			{
+				double? maxMagnitude = earthquakesInGeograficCell.Where(x => x.Time >= firstDate.AddDays(i) &&
+				x.Time <= firstDate.AddDays(i+days)).OrderByDescending(x => x.Magnitude).FirstOrDefault()?.Magnitude;
+
+				if(maxMagnitude == null)
+				{
+					magnitudes.Add(0);
+				}
+				else
+				{
+					magnitudes.Add(maxMagnitude.Value);
+				}
+				
+			}
+
+
+
 			GetAllEarthQuakesResponse response = new GetAllEarthQuakesResponse
 			{
-				Earthquakes = earthquakesInGeograficCell.GroupBy(x => (x.Time.Year,x.Time.Month))
-				.Select(x => x.OrderByDescending(x => x.Magnitude).First()).ToList(),
-				GroupedEarthQuakes = earthQuakes.GroupBy(x => x.Magnitude).Select(x => new GroupedEarthQuakes
-				{
-					Count = x.Count(),
-					MagnitudeValue = x.First().Magnitude
-				}).OrderBy(x => x.MagnitudeValue).ToList(),
-				Magnitudes = earthquakesInGeograficCell.GroupBy(x => (x.Time.Year, x.Time.Month))
-				.Select(x => x.OrderByDescending(x => x.Magnitude).First().Magnitude).ToArray()
+				Magnitudes = magnitudes.ToArray()
 			};
+
 
 			return Ok(response);
 		}
